@@ -5,15 +5,25 @@ Here's a sample from a .TextGrid file: (The 2 time1 time2 means tier 2 (the Exam
 and said the phrase on the following line in quotes)
 
 2 128.90218325 130.061723356
+
 "XXX." [removed for privacy]
+
 2 130.061723356 131.087755102
+
 ""
+
 2 131.087755102 132.519175887
+
 "XXX." [removed for privacy]
+
 2 132.519175887 133.509886621
+
 ""
+
 2 133.509886621 135.898074937
+
 "XXX." [removed for privacy]
+
 
 As seen above, .TextGrid files need to record the time interval for each speaker's utterance, 
 and then the time interval for how long it has been since a speaker last spoke.
