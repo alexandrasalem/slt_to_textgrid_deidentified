@@ -12,12 +12,14 @@ def pre_process(orig):
     with open(orig, "r") as f2:
         current_line = None
         for row in f2:
+            row = row.replace(u"\ufeff", "")
             row = row.strip()
-            if re.match(pattern1, row) or re.match(pattern2, row):
+            if pattern1.match(row) or pattern2.match(row):
                 if current_line is not None:
                     new.append(current_line)
                 current_line = row
             else:
+                print(row)
                 if len(row) == 0:
                     continue #no reason to keep empty rows
                 assert current_line is not None, "This row is messed up: " + row
@@ -31,7 +33,7 @@ def pre_process(orig):
 def first_real_line(file):
     current = file.readline()
     count = 1
-    while current[0] != "=":
+    while current[0] != "=" and current[0] != "-":
         current = file.readline()
         count+=1
     #return count

@@ -37,9 +37,18 @@ Then, we run through the (pre-processed) original .slt file, and simulate the ti
 using our timestamps, booleans, and gap counts (explained further in the main file).
 
 """
-import sys
+import sys, glob, os, argparse, re
 from grid_helper_functions import time_to_seconds, pre_process, first_real_line, number_of_lines, go_here, preamble, time_function
 
+parser = argparse.ArgumentParser(description = "Changes MIND .txt file to CSLU style .TextGrid file. Takes as its first argument the path to the directory containing input transcripts, and second argument is the desired output directory for the processed transcripts.")
+parser.add_argument('output_dir' , type=str, help='location of files that have already been processed by MIND_processing.py')
+parser.add_argument('output_transcripts' , type=str, help='location for output transcripts')
+args = parser.parse_args()
+
+output_dir = args.output_dir
+output_transcripts = args.output_transcripts
+
+###################################################
 activities = ["= CONSTRUCTION TASK", "= PLAY", 
                     "= DEMONSTRATION TASK", "= PICTURE DESCRIPTION", 
                     "= WORDLESS PICTURE BOOK", "= CARTOONS", 
@@ -214,11 +223,30 @@ def main(orig):
 
         #last thing, adding last activity:
         lines[temp-1] = "3 " + str(timestamp2-activity_gap_count) + " " + str(time) + "\n"
-
+        return lines
         #writing the new file:
-        with open(str(orig)[:-4] + "_new.TextGrid", "w+") as f:
-            for x in lines:
-                f.write(str(x))
+        #with open(str(orig)[:-4] + "_new.TextGrid", "w+") as f:
+            #for x in lines:
+                #f.write(str(x))
+#creating the output directory if it doesn't exist:
+if not os.path.exists(output_transcripts):
+    os.makedirs(output_transcripts)
 
-if __name__=='__main__':
-    main(sys.argv[1])
+print(re.match("^([\$\+;:=-])", "$ Child, Examiner"))
+
+#run this script:
+for file in glob.glob(output_dir+"*.txt"):
+    print(file)
+    name = re.findall('(?<=/).*(?=.txt)',file)[0]
+    print(name)
+    lines = main(file)
+    with open(output_transcripts + name + "_new.TextGrid", "w+") as f:
+        for x in lines:
+            f.write(str(x))
+    print("done")
+
+ 
+
+#way to run it on one script:
+#if __name__=='__main__':
+#    main(sys.argv[1])
