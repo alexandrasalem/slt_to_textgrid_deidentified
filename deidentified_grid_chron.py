@@ -38,7 +38,7 @@ using our timestamps, booleans, and gap counts (explained further in the main fi
 
 """
 import sys, glob, os, argparse, re
-from grid_helper_functions import time_to_seconds, pre_process, first_real_line, number_of_lines, go_here, preamble, time_function
+from grid_helper_functions import time_to_seconds, pre_process, first_real_line, number_of_lines, go_here, preamble, time_function, tiers
 
 parser = argparse.ArgumentParser(description = "Changes MIND .txt file to CSLU style .TextGrid file. Takes as its first argument the path to the directory containing input transcripts, and second argument is the desired output directory for the processed transcripts.")
 parser.add_argument('output_dir' , type=str, help='location of files that have already been processed by MIND_processing.py')
@@ -57,23 +57,24 @@ activities = ["= CONSTRUCTION TASK", "= PLAY",
                     "= xFRIENDS AND MARRIAGE CONVERSATION", "= CREATING A STORY", 
                     "= xLONELINESS CONVERSATION"]
 
-
 def main(orig):
-    #creating replace.txt, our pre-processed file:
-    pre_process(orig)
+    #creating replace.txt, our pre-processed file, plus returning the first line, for determining tiers:
+    first_line = pre_process(orig)
 
     #converting the time given at the end of the txt file to seconds:
     leng = number_of_lines("replace.txt")
     time = go_here("replace.txt", leng-1)
-    time = time[0:7]
+    #time = time[0:7]
     time = time_to_seconds(time)
     lines = []
 
     #initializing a variable for activities
     temp = 1
 
+    tier = tiers(first_line)
+
     #writing the preliminary lines
-    lines = preamble(lines, time)
+    lines = preamble(lines, time, tier)
     
     with open("replace.txt", "r") as f2:
         #get to the beginning:
@@ -81,18 +82,21 @@ def main(orig):
         count = x[0]
         x = x[1]
 
-
         #initializing our variables:
         i = count 
 
         child_boolean = True 
         examiner_boolean = True 
+        examiner2_boolean = True
+        parent_boolean = True
         comment_boolean = True
 
         child_gap_count = .1 
         examiner_gap_count = .1 
         comment_gap_count = .1
         activity_gap_count = .1
+        examiner2_gap_count = .1
+        parent_gap_count = .1
 
         timestamp1 = 0.0 
         timestamp2 = 0.1 
@@ -100,90 +104,140 @@ def main(orig):
         #our main loop
         while x:
             #if we are at the end of the file, add the last stuff:
-            if i == leng-1:
-                #lines.append("%s%s%s%s%s" % ("1 ", timestamp2-child_gap_count, " ", time, "\n"))
+            if i == leng:
                 lines.append("1 " + str(timestamp2-child_gap_count) + " " + str(time) + "\n")
                 lines.append('""\n')  
                 lines.append("2 " + str(timestamp2-examiner_gap_count) + " " + str(time) + "\n")
                 lines.append('""\n')                                      
                 lines.append("4 " + str(timestamp2-comment_gap_count) + " " + str(time) + "\n")   
-                lines.append('""\n')          
+                lines.append('""\n')
+                for x in tier:
+                    if x == "Other":
+                        lines.append("5 " + str(timestamp2-examiner2_gap_count) + " " + str(time) + "\n")
+                        lines.append('""\n')
+                    if x == "Parent":
+                        lines.append("6 " + str(timestamp2-parent_gap_count) + " " + str(time) + "\n")
+                        lines.append('""\n')          
                 break
-            #if Examiner spoke:
-            if x[0] == "E" or x[0] == "O":
-                #set other booleans to false, add time for this utterance to other gap counts: 
-                child_boolean = False
-                comment_boolean = False
-                child_gap_count+=time_function(x)
-                comment_gap_count +=time_function(x)
-                activity_gap_count+=time_function(x)
-                #if the examiner boolean is false (i.e., the examiner didn't just speak), print the gap since they last spoke:
-                #also change examiner boolean to true, gap to 0:
-                if examiner_boolean == False:
-                    lines.append("2 " + str(timestamp2-examiner_gap_count) + " " + str(timestamp2) + "\n")
-                    lines.append('""\n')
-                    examiner_boolean = True 
-                examiner_gap_count = 0 
+            #if a person spoke:
+            if x[0] == "E" or x[0] == "O" or x[0] == "C" or x[0] == "P":
+                tier_number = 0
+                if x[0] == "E":
+                    tier_number = 2
+                    examiner2_boolean = False
+                    child_boolean = False
+                    parent_boolean = False
+                    comment_boolean = False
+                    examiner2_gap_count+=time_function(x)
+                    child_gap_count+=time_function(x)
+                    parent_gap_count+=time_function(x)
+                    comment_gap_count +=time_function(x)
+                    activity_gap_count+=time_function(x)
+                    #if the examiner boolean is false (i.e., the examiner didn't just speak), print the gap since they last spoke:
+                    #also change examiner boolean to true, gap to 0:
+                    if examiner_boolean == False:
+                        lines.append("2 " + str(timestamp2-examiner_gap_count) + " " + str(timestamp2) + "\n")
+                        lines.append('""\n')
+                        examiner_boolean = True 
+                    examiner_gap_count = 0 
+                elif x[0] == "O":
+                    tier_number= 5
+                    examiner_boolean = False
+                    child_boolean = False
+                    parent_boolean = False
+                    comment_boolean = False
+                    examiner_gap_count+=time_function(x)
+                    child_gap_count+=time_function(x)
+                    parent_gap_count+=time_function(x)
+                    comment_gap_count +=time_function(x)
+                    activity_gap_count+=time_function(x)
+                    #if the examiner2 boolean is false (i.e., the other examiner didn't just speak), print the gap since they last spoke:
+                    #also change examiner2 boolean to true, gap to 0:
+                    if examiner2_boolean == False:
+                        lines.append("5 " + str(timestamp2-examiner2_gap_count) + " " + str(timestamp2) + "\n")
+                        lines.append('""\n')
+                        examiner2_boolean = True 
+                    examiner2_gap_count = 0 
+                elif x[0] == "C":
+                    tier_number = 1
+                    examiner_boolean = False
+                    examiner2_boolean = False
+                    parent_boolean = False
+                    comment_boolean = False
+                    examiner_gap_count+=time_function(x)
+                    examiner2_gap_count+=time_function(x)
+                    parent_gap_count+=time_function(x)
+                    comment_gap_count +=time_function(x)
+                    activity_gap_count+=time_function(x)
+                    #if the child boolean is false (i.e., the child didn't just speak), print the gap since they last spoke:
+                    #also change child boolean to true, gap to 0:
+                    if child_boolean == False: 
+                        lines.append("1 " + str(timestamp2-child_gap_count) + " " + str(timestamp2) + "\n")
+                        lines.append('""\n')
+                        child_boolean = True 
+                    child_gap_count = 0 
+                elif x[0] == "P":
+                    tier_number = 6
+                    examiner_boolean = False
+                    examiner2_boolean = False
+                    child_boolean = False
+                    comment_boolean = False
+                    examiner_gap_count+=time_function(x)
+                    examiner2_gap_count+=time_function(x)
+                    child_gap_count+=time_function(x)
+                    comment_gap_count +=time_function(x)
+                    activity_gap_count+=time_function(x)
+                    #if the parent boolean is false (i.e., the parent didn't just speak), print the gap since they last spoke:
+                    #also change parent boolean to true, gap to 0:
+                    if parent_boolean == False:
+                        lines.append("6 " + str(timestamp2-parent_gap_count) + " " + str(timestamp2) + "\n")
+                        lines.append('""\n')
+                        parent_boolean = True 
+                    parent_gap_count = 0 
                 #add length of this utterance to general timestamps:
                 timestamp1+=time_function(x) 
                 timestamp2+=time_function(x) 
                 #add the lines for the current utterance: 
-                lines.append("2 " + str(timestamp1) +" " + str(timestamp2) + "\n")
+                lines.append(str(tier_number) + " " + str(timestamp1) +" " + str(timestamp2) + "\n")
                 y = x
                 y = y[2:-1]
                 y = y.replace('"', '')
                 lines.append('"' + y + '"' + "\n") 
-            #if child spoke:
-            elif x[0] == "C": 
-                #set other booleans to false, add time for this utterance to other gap counts:
-                examiner_boolean = False
-                comment_boolean = False
-                examiner_gap_count+=time_function(x)
-                comment_gap_count +=time_function(x)
-                activity_gap_count +=time_function(x)
-                #if the child boolean is false (i.e., the child didn't just speak), print the gap since they last spoke:
-                #also change child boolean to true, gap to 0:
-                if child_boolean == False: 
-                    lines.append("1 " + str(timestamp2-child_gap_count) + " " + str(timestamp2) + "\n")
-                    lines.append('""\n')
-                    child_boolean = True 
-                child_gap_count = 0 
-                #add length of this utterance to general timestamps:
-                timestamp1+=time_function(x) 
-                timestamp2+=time_function(x)
-                #add the lines for the current utterance: 
-                lines.append("1 " + str(timestamp1) + " " + str(timestamp2) + "\n")
-                y = x
-                y = y[2:-1]
-                y = y.replace('"', '')
-                lines.append('"' + y + '"' + "\n")
             #if there's a pause:
-            elif x[0] == ";" or x[0] == ":":
+            if x[0] == ";" or x[0] == ":":
                 #convert that pause to seconds, and add it to the timestamps, gaps:
                 y = time_to_seconds(x)
                 timestamp1 += y
                 timestamp2 += y
                 examiner_gap_count += y
+                examiner2_gap_count +=y
                 child_gap_count += y
+                parent_gap_count += y
                 comment_gap_count +=y
                 activity_gap_count +=y
                 #change booleans to false (now there's a gap since they all last spoke):
                 child_boolean = False
                 examiner_boolean = False
+                examiner2_boolean = False
+                parent_boolean = False
                 comment_boolean = False
             #if there's a minute mark:
             elif x[0] == "-":
                 #convert that minute mark to seconds:
                 y = time_to_seconds(x)
                 #move the gaps to be the previous gap, plus how far we are past the previous timestamp2 
-                examiner_gap_count = y-(timestamp2-examiner_gap_count)  
+                examiner_gap_count = y-(timestamp2-examiner_gap_count)
+                examiner2_gap_count = y-(timestamp2-examiner2_gap_count)  
                 child_gap_count = y-(timestamp2-child_gap_count)
+                parent_gap_count = y-(timestamp2-parent_gap_count)
                 comment_gap_count = y-(timestamp2-comment_gap_count)
                 activity_gap_count = y-(timestamp2-activity_gap_count)
                 timestamp1 = y-.1 
                 timestamp2 = y
                 child_boolean = False
                 examiner_boolean = False
+                examiner2_boolean = False
+                parent_boolean = False
                 comment_boolean = False
             #if there's an =, so either a comment or activity:
             elif x[0] == "=":
@@ -222,17 +276,18 @@ def main(orig):
             x = f2.readline()
 
         #last thing, adding last activity:
-        lines[temp-1] = "3 " + str(timestamp2-activity_gap_count) + " " + str(time) + "\n"
+        if temp!=1:
+            lines[temp-1] = "3 " + str(timestamp2-activity_gap_count) + " " + str(time) + "\n"
         return lines
         #writing the new file:
         #with open(str(orig)[:-4] + "_new.TextGrid", "w+") as f:
             #for x in lines:
                 #f.write(str(x))
+
 #creating the output directory if it doesn't exist:
 if not os.path.exists(output_transcripts):
     os.makedirs(output_transcripts)
 
-print(re.match("^([\$\+;:=-])", "$ Child, Examiner"))
 
 #run this script:
 for file in glob.glob(output_dir+"*.txt"):
